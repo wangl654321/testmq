@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:rabbit="http://www.springframework.org/schema/rabbit" xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans-4.0.xsd 
+http://www.springframework.org/schema/context 
+http://www.springframework.org/schema/context/spring-context-4.0.xsd
+http://www.springframework.org/schema/rabbit 
+http://www.springframework.org/schema/rabbit/spring-rabbit-1.6.xsd">
+
+	<context:component-scan base-package="com.test.rabbit.producer" />
+
+	<context:annotation-config />
+
+	<!-- 连接服务配置 --> 
+   	<rabbit:connection-factory id="connectionFactory" addresses="192.168.162.100:5672,192.168.162.101:5672" username="admin" password="admin"  />
+
+	<!-- Admin object for creation of queues -->
+	<rabbit:admin connection-factory="connectionFactory" />
+	
+	<!-- queue statement-->
+   	<rabbit:queue id="ltest" durable="true" auto-delete="false" exclusive="false" name="ltest"/>
+   	<rabbit:queue id="hyBillingClearMerchantQueue" durable="true" auto-delete="false" exclusive="false" name="hyBillingClearMerchantQueue"/>
+   	<rabbit:queue id="hyBillingClearChannelQueue" durable="true" auto-delete="false" exclusive="false" name="hyBillingClearChannelQueue"/>
+   	<rabbit:queue id="hyBillingChannelResultqueue" durable="true" auto-delete="false" exclusive="false" name="hyBillingChannelResultqueue"/>
+
+   	<!-- exchange queue binging key 绑定 -->
+    <rabbit:direct-exchange name="ltest-exchange" durable="true" auto-delete="false" id="ltest-exchange">
+        <rabbit:bindings>
+            <rabbit:binding queue="ltest" key="ltest_key"/>
+            <rabbit:binding queue="hyBillingClearMerchantQueue" key="hyBillingClearMerchantQueue_key"/>
+            <rabbit:binding queue="hyBillingClearChannelQueue" key="hyBillingClearChannelQueue_key"/>
+            <rabbit:binding queue="hyBillingChannelResultqueue" key="hyBillingChannelResultqueue_key"/>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <!-- spring amqp默认的是jackson 的一个插件,目的将生产者生产的数据转换为json存入消息队列 -->
+    <!-- <bean id="jsonMessageConverter"  class="com.exiao.platform.common.message.mq.provider.JacksonMessageConverter"></bean> -->
+    <!-- 声明消息转换器为SimpleMessageConverter -->
+    <bean id="mqMessageConverter"
+        class="org.springframework.amqp.support.converter.SimpleMessageConverter">
+    </bean>
+
+	<rabbit:template exchange="ltest-exchange" id="hyBillingClearMerchantqueueAmqpTemplate" routing-key= "hyBillingClearMerchantQueue_key" queue="hyBillingClearMerchantQueue" connection-factory="connectionFactory" message-converter="mqMessageConverter" />
+    <rabbit:template exchange="ltest-exchange" id="hyBillingClearChannelqueueAmqpTemplate" routing-key= "hyBillingClearChannelQueue_key" queue="hyBillingClearChannelQueue" connection-factory="connectionFactory" message-converter="mqMessageConverter" />
+    <rabbit:template exchange="ltest-exchange" id="hyBillingChannelResultqueueAmqpTemplate" routing-key= "hyBillingChannelResultqueue_key" queue="hyBillingChannelResultqueue" connection-factory="connectionFactory" message-converter="mqMessageConverter" />
+    <!-- queue litener -->
+    <rabbit:template exchange="ltest-exchange" id="ltestAmqpTemplate" routing-key= "ltest_key" queue="ltest" connection-factory="connectionFactory" message-converter="mqMessageConverter" />
+    
+</beans>
